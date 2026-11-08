@@ -1,0 +1,1 @@
+enum ContactInputMode { email, phone }

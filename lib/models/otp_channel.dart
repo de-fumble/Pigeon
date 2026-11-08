@@ -1,0 +1,1 @@
+enum OtpChannel { email, phone }

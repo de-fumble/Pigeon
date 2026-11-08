@@ -1,0 +1,23 @@
+// This is a basic Flutter widget test.
+//
+// To perform an interaction with a widget in your test, use the WidgetTester
+// utility in the flutter_test package. For example, you can send tap and scroll
+// gestures. You can also use WidgetTester to find child widgets in the widget
+// tree, read text, and verify that the values of widget properties are correct.
+
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:pigeon/app.dart';
+import 'package:pigeon/components/onboarding/onboarding_footer.dart';
+import 'package:pigeon/components/onboarding/onboarding_brand_mark.dart';
+
+void main() {
+  testWidgets('renders onboarding screen content', (WidgetTester tester) async {
+    await tester.pumpWidget(const PigeonApp());
+
+    expect(find.byType(OnboardingBrandMark), findsOneWidget);
+    expect(find.byType(OnboardingFooter), findsOneWidget);
+    expect(find.text('Get Started'), findsOneWidget);
+    expect(find.text('Already have an account?'), findsOneWidget);
+  });
+}

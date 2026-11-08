@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Pigeon Sets Prices</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Plan: a single readable column like a printed briefing note, with analogy
+   call-outs set apart by a stripe and real ₦ figures in tabular tables.
+   Accent = Pigeon's own app red; money that comes back to you is green. */
+:root {
+  --paper: #f7f8fa;
+  --ink: #16181d;
+  --muted: #5b6070;
+  --rule: #dde0e7;
+  --panel: #ffffff;
+  --accent: #d81e47;
+  --money: #0f8a47;
+  --bar-muted: #b9bdc8;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --font-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111216;
+    --ink: #eceef2;
+    --muted: #9aa0ae;
+    --rule: #2b2e37;
+    --panel: #1a1c22;
+    --accent: #ff4d6d;
+    --money: #33d17a;
+    --bar-muted: #4a4f5c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111216;
+  --ink: #eceef2;
+  --muted: #9aa0ae;
+  --rule: #2b2e37;
+  --panel: #1a1c22;
+  --accent: #ff4d6d;
+  --money: #33d17a;
+  --bar-muted: #4a4f5c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 1.0625rem/1.65 var(--font-body);
+}
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 4rem;
+  display: grid;
+  gap: 2.75rem;
+}
+h1, h2, h3 {
+  font-family: var(--font-display);
+  line-height: 1.15;
+  text-wrap: balance;
+  margin: 0;
+}
+h1 { font-size: clamp(2.1rem, 6vw, 3rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 1.1rem; font-weight: 600; }
+p { margin: 0; }
+section { display: grid; gap: 1rem; }
+section > h2 { display: flex; gap: 0.6rem; align-items: baseline; }
+.step {
+  font: 500 0.85rem var(--font-mono);
+  color: var(--accent);
+}
+.lede { font-size: 1.2rem; color: var(--muted); }
+.byline { font: 500 0.85rem var(--font-mono); color: var(--muted); }
+header { display: grid; gap: 1rem; }
+
+.glance {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 1.25rem 1.4rem;
+  display: grid;
+  gap: 0.6rem;
+}
+.glance h2 { font-size: 1.1rem; }
+.glance ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.45rem; }
+
+.analogy {
+  border-left: 4px solid var(--accent);
+  background: var(--panel);
+  padding: 1rem 1.2rem;
+  border-radius: 0 10px 10px 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.analogy .tag {
+  font: 600 0.75rem var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+}
+caption {
+  caption-side: top;
+  text-align: left;
+  font: 600 0.95rem var(--font-display);
+  padding-bottom: 0.5rem;
+}
+th, td { padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr:last-child th, tr:last-child td { border-bottom: 0; }
+th { font-weight: 600; }
+td.num { text-align: right; white-space: nowrap; }
+.good { color: var(--money); font-weight: 600; }
+.bad { color: var(--accent); font-weight: 600; }
+
+figure { margin: 0; display: grid; gap: 0.6rem; }
+figure svg { width: 100%; height: auto; display: block; color: var(--ink); }
+figcaption { font-size: 0.92rem; color: var(--muted); }
+.chart-box {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 1rem 0.75rem 0.5rem;
+  overflow-x: auto;
+}
+
+.formula {
+  font: 500 0.95rem/1.6 var(--font-mono);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+.levers { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.lever {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+}
+.lever p { font-size: 0.97rem; }
+dl { margin: 0; display: grid; gap: 0.8rem; }
+dt { font: 600 1rem var(--font-display); }
+dd { margin: 0.15rem 0 0; color: var(--muted); }
+ol.plain { margin: 0; padding-left: 1.3rem; display: grid; gap: 0.5rem; }
+footer { font-size: 0.9rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 1.25rem; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <p class="byline">Pigeon · product briefing · for founders</p>
+  <h1>How Pigeon sets prices</h1>
+  <p class="lede">Every price you see in the Pigeon app comes from one small machine called the market maker. This note explains what it does, why prices move, and how much money Pigeon can make or lose, without assuming any maths.</p>
+</header>
+
+<div class="glance">
+  <h2>The short version</h2>
+  <ul>
+    <li>A <strong>share</strong> pays <strong>₦100</strong> if its outcome happens and ₦0 if it doesn't. Its price, between ₦1 and ₦99, is the crowd's estimate of the chance.</li>
+    <li>Users always trade with Pigeon's <strong>market maker</strong>, an automatic dealer that is always willing to buy or sell and nudges prices with every trade.</li>
+    <li>The <strong>market seed</strong> an admin sets when creating a market controls how jumpy prices are, and it is also <strong>the most Pigeon can ever lose</strong> on that market.</li>
+    <li>Pigeon earns a <strong>2% fee</strong> on every buy and every sell. Pigeon's market maker wins money when the crowd's favourite turns out wrong, and loses some when everyone correctly piles onto the winner.</li>
+  </ul>
+</div>
+
+<section>
+  <h2><span class="step">01</span> What people are buying</h2>
+  <p>Take the question “Who will be the next Nigerian President?” with four candidates, A to D. On Pigeon, every candidate has its own shares. A share in Candidate B is a promise: if B wins, Pigeon pays the holder ₦100 for that share. If B loses, the share is worth nothing.</p>
+  <p>So if a B share costs ₦25, the market is saying B has roughly a 25% chance. That is why the app shows the price and the “chance” as the same number.</p>
+  <div class="analogy">
+    <span class="tag">Think of it like</span>
+    <p>A voucher that reads “Redeem for ₦100 if B wins.” Nobody would pay ₦90 for it unless they were nearly certain B wins, and nobody would sell it for ₦5 unless they thought B was hopeless. The price people pay for the voucher is their opinion, measured in naira.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="step">02</span> Who is on the other side of the trade</h2>
+  <p>In a normal betting shop, or on a stock exchange, a buyer needs a seller. Early on, with few users, there often isn't one, and trades would just sit there. Pigeon solves this with an automated market maker: a piece of software that is always ready to sell you shares, or buy them back, at a price it calculates on the spot.</p>
+  <div class="analogy">
+    <span class="tag">Think of it like</span>
+    <p>A bureau de change that never closes. You can always walk up and swap money; it never says “come back when someone else wants dollars.” But if everyone rushes in to buy dollars, the rate it quotes climbs with every customer, and when people start selling dollars back, the rate eases. Pigeon's market maker does the same with shares.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="step">03</span> Why prices move</h2>
+  <p>The market maker follows two rules:</p>
+  <ol class="plain">
+    <li><strong>The chances always add up to 100%.</strong> Four candidates start at 25% each. If one goes up, the others go down by the same total.</li>
+    <li><strong>Buying pushes a price up, selling pushes it down.</strong> Every share bought is a vote for that outcome, so its price rises a little.</li>
+  </ol>
+  <div class="analogy">
+    <span class="tag">Think of it like</span>
+    <p>A pie that is always exactly one pie. Buying into Candidate B makes B's slice bigger, and the only place that space can come from is everyone else's slices.</p>
+  </div>
+  <figure>
+    <div class="chart-box">
+      <svg viewBox="0 0 640 240" role="img" aria-label="Before any trading, each of four candidates is priced at 25%. After one person buys ₦100,000 of Candidate B, B rises to 81.25% and A, C and D each fall to 6.25%.">
+        <g font-family="IBM Plex Mono, ui-monospace, monospace" font-size="12" fill="currentColor">
+          <rect x="150" y="4" width="14" height="10" rx="2" fill="var(--bar-muted)"/>
+          <text x="170" y="13">Before any trading</text>
+          <rect x="330" y="4" width="14" height="10" rx="2" fill="var(--accent)"/>
+          <text x="350" y="13">After someone buys ₦100,000 of B</text>
+
+          <text x="0" y="55">Candidate A</text>
+          <rect x="150" y="40" width="110" height="12" rx="2" fill="var(--bar-muted)"/>
+          <text x="268" y="50">25%</text>
+          <rect x="150" y="56" width="27.5" height="12" rx="2" fill="currentColor" opacity="0.55"/>
+          <text x="185" y="66">6.25%</text>
+
+          <text x="0" y="105">Candidate B</text>
+          <rect x="150" y="90" width="110" height="12" rx="2" fill="var(--bar-muted)"/>
+          <text x="268" y="100">25%</text>
+          <rect x="150" y="106" width="357.5" height="12" rx="2" fill="var(--accent)"/>
+          <text x="515" y="116" font-weight="600">81.25%</text>
+
+          <text x="0" y="155">Candidate C</text>
+          <rect x="150" y="140" width="110" height="12" rx="2" fill="var(--bar-muted)"/>
+          <text x="268" y="150">25%</text>
+          <rect x="150" y="156" width="27.5" height="12" rx="2" fill="currentColor" opacity="0.55"/>
+          <text x="185" y="166">6.25%</text>
+
+          <text x="0" y="205">Candidate D</text>
+          <rect x="150" y="190" width="110" height="12" rx="2" fill="var(--bar-muted)"/>
+          <text x="268" y="200">25%</text>
+          <rect x="150" y="206" width="27.5" height="12" rx="2" fill="currentColor" opacity="0.55"/>
+          <text x="185" y="216">6.25%</text>
+
+          <line x1="150" y1="30" x2="150" y2="228" stroke="currentColor" opacity="0.35"/>
+        </g>
+      </svg>
+    </div>
+    <figcaption>Figure 1. A market seeded with ₦100,000. One ₦100,000 buy of Candidate B moves it from 25% to 81.25%; the other three fall to 6.25% each, so the total stays at 100%.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="step">04</span> The market seed: how deep the pool is</h2>
+  <p>When an admin creates a market they enter a <strong>market seed</strong>, for example ₦100,000. The seed does two jobs at once:</p>
+  <ol class="plain">
+    <li><strong>It sets how much prices move per trade.</strong> A bigger seed means steadier prices; a smaller seed means a single large trade can swing the market.</li>
+    <li><strong>It caps Pigeon's risk.</strong> The maths guarantees Pigeon can never lose more than the seed on that market, no matter who buys what or which outcome wins. Fees collected come on top of that.</li>
+  </ol>
+  <div class="analogy">
+    <span class="tag">Think of it like</span>
+    <p>Throwing a stone into water. In a puddle (small seed), the splash is huge. In a lake (big seed), the same stone barely makes a ripple. The size of the lake is also what you have committed to the game: a lake costs more to fill, but it is calmer.</p>
+  </div>
+  <figure>
+    <div class="chart-box">
+      <svg viewBox="0 0 640 300" role="img" aria-label="Price of one candidate after a single buyer spends between ₦0 and ₦500,000, in a four-candidate market. With a ₦100,000 seed the price climbs from 25% to 81% after ₦100,000 and nearly 100% by ₦500,000. With a ₦1,000,000 seed it only reaches 35% after ₦100,000 and 62.5% after ₦500,000.">
+        <g font-family="IBM Plex Mono, ui-monospace, monospace" font-size="11" fill="currentColor">
+          <g stroke="currentColor" opacity="0.15">
+            <line x1="64" y1="28" x2="600" y2="28"/>
+            <line x1="64" y1="84" x2="600" y2="84"/>
+            <line x1="64" y1="140" x2="600" y2="140"/>
+            <line x1="64" y1="196" x2="600" y2="196"/>
+          </g>
+          <line x1="64" y1="252" x2="600" y2="252" stroke="currentColor" opacity="0.5"/>
+          <line x1="64" y1="28" x2="64" y2="252" stroke="currentColor" opacity="0.5"/>
+          <text x="56" y="32" text-anchor="end">100%</text>
+          <text x="56" y="88" text-anchor="end">75%</text>
+          <text x="56" y="144" text-anchor="end">50%</text>
+          <text x="56" y="200" text-anchor="end">25%</text>
+          <text x="56" y="256" text-anchor="end">0%</text>
+          <text x="64" y="270" text-anchor="middle">₦0</text>
+          <text x="171.2" y="270" text-anchor="middle">₦100k</text>
+          <text x="278.4" y="270" text-anchor="middle">₦200k</text>
+          <text x="385.6" y="270" text-anchor="middle">₦300k</text>
+          <text x="492.8" y="270" text-anchor="middle">₦400k</text>
+          <text x="600" y="270" text-anchor="middle">₦500k</text>
+          <text x="332" y="292" text-anchor="middle" opacity="0.8">Amount one person spends on Candidate B</text>
+
+          <polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" points="64.0,196.0 90.8,146.8 117.6,112.0 144.4,87.4 171.2,70.0 198.0,57.7 224.8,49.0 251.6,42.9 278.4,38.5 305.2,35.4 332.0,33.2 358.8,31.7 385.6,30.6 412.4,29.9 439.2,29.3 466.0,28.9 492.8,28.6 519.6,28.5 546.4,28.3 573.2,28.2 600.0,28.2"/>
+          <polyline fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" opacity="0.75" points="64.0,196.0 90.8,190.3 117.6,184.8 144.4,179.4 171.2,174.2 198.0,169.3 224.8,164.5 251.6,159.8 278.4,155.3 305.2,151.0 332.0,146.8 358.8,142.8 385.6,138.8 412.4,135.1 439.2,131.4 466.0,127.9 492.8,124.5 519.6,121.2 546.4,118.0 573.2,115.0 600.0,112.0"/>
+
+          <circle cx="171.2" cy="70.0" r="4" fill="var(--accent)"/>
+          <text x="180" y="66" fill="var(--accent)" font-weight="600">81.25%</text>
+          <circle cx="171.2" cy="174.2" r="4" fill="currentColor"/>
+          <text x="180" y="192">34.71%</text>
+
+          <text x="596" y="48" text-anchor="end" fill="var(--accent)" font-weight="600">₦100,000 seed</text>
+          <text x="596" y="104" text-anchor="end">₦1,000,000 seed</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>Figure 2. The same ₦100,000 buy moves Candidate B to 81.25% in a ₦100,000-seed market, but only to 34.71% in a ₦1,000,000-seed market. Bigger seeds make prices harder to push around.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2><span class="step">05</span> A worked example</h2>
+  <p>Here is the four-candidate market with a ₦100,000 seed. These are the exact figures the app and the server produce; the app's screens and the server use the same formula.</p>
+  <div class="table-wrap">
+    <table>
+      <caption>Ama buys ₦649 of Candidate B (a small trade)</caption>
+      <tbody>
+        <tr><th scope="row">Price before</th><td class="num">₦25.00 per share (25%)</td></tr>
+        <tr><th scope="row">Shares Ama receives</th><td class="num">25.62</td></tr>
+        <tr><th scope="row">Average price she paid</th><td class="num">₦25.33 per share</td></tr>
+        <tr><th scope="row">Pigeon's fee (2%)</th><td class="num">₦12.98</td></tr>
+        <tr><th scope="row">Total leaving her wallet</th><td class="num">₦661.98</td></tr>
+        <tr><th scope="row">She is paid if B wins</th><td class="num good">₦2,561.68</td></tr>
+        <tr><th scope="row">Price after her trade</th><td class="num">₦25.67 (25.67%)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Notice she paid an average of ₦25.33, slightly more than the ₦25 she saw. Each share she bought nudged the price up a fraction before the next one. That small difference is called <strong>slippage</strong>.</p>
+  <div class="analogy">
+    <span class="tag">Think of it like</span>
+    <p>Buying tomatoes from a trader who raises the price a little after each basket goes. Buy one basket and you barely notice. Buy her whole stall and the last baskets cost far more than the first, so your average price is much higher than the price on the sign when you arrived.</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <caption>Same market: how far one buyer's money goes</caption>
+      <thead>
+        <tr><th scope="col">One person spends</th><th scope="col" class="num">Shares received</th><th scope="col" class="num">Average price</th><th scope="col" class="num">B's price afterwards</th><th scope="col" class="num">Paid if B wins</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>₦649</td><td class="num">25.62</td><td class="num">₦25.33</td><td class="num">25.67%</td><td class="num">₦2,561.68</td></tr>
+        <tr><td>₦10,000</td><td class="num">336.68</td><td class="num">₦29.70</td><td class="num">34.71%</td><td class="num">₦33,668.47</td></tr>
+        <tr><td>₦50,000</td><td class="num">1,160.96</td><td class="num">₦43.07</td><td class="num">62.50%</td><td class="num">₦116,096.40</td></tr>
+        <tr><td>₦100,000</td><td class="num">1,850.22</td><td class="num">₦54.05</td><td class="num">81.25%</td><td class="num">₦185,021.98</td></tr>
+        <tr><td>₦500,000</td><td class="num">5,999.47</td><td class="num">₦83.34</td><td class="num">99.93%</td><td class="num">₦599,947.14</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The price never reaches ₦100. The closer an outcome gets to certain, the more it costs to push it further, so nobody can buy a sure thing for less than it pays out.</p>
+</section>
+
+<section>
+  <h2><span class="step">06</span> Selling before the result</h2>
+  <p>Users don't have to wait for the outcome. They can sell shares back to the market maker at any time while the market is open. Selling runs the same machine in reverse: the price drops a little with each share sold, and Pigeon takes a 2% fee from the proceeds.</p>
+  <p>If B's price has risen since Ama bought, she can sell for a profit without waiting for the election. If it has fallen, she can sell to cut her losses.</p>
+  <div class="analogy">
+    <span class="tag">Think of it like</span>
+    <p>Selling a match ticket back before kickoff. If the fixture has become the hottest game in town, you get more than you paid. If interest has faded, you get less, but you get something now instead of waiting to see the result.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="step">07</span> When the result is known</h2>
+  <ol class="plain">
+    <li>An admin marks the winning outcome. Trading stops immediately.</li>
+    <li>There is a <strong>10-minute settlement window</strong> in which the admin can correct a mistake.</li>
+    <li>After the window, every winning share pays <strong>₦100</strong> into its holder's wallet, and losing shares pay nothing. Everyone involved gets a “You won” or “You lost” notification. This happens automatically once the scheduled settlement job is switched on; until then an admin triggers it.</li>
+    <li>If a market has to be cancelled, for example a match is abandoned, it is <strong>voided</strong>: everyone gets back what they paid for the shares they still hold. Fees are not refunded.</li>
+  </ol>
+</section>
+
+<section>
+  <h2><span class="step">08</span> How Pigeon makes, and can lose, money</h2>
+  <p>There are two separate money flows:</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th scope="col">Source</th><th scope="col">What happens</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">Fees</th><td><span class="good">Always income.</span> 2% on every buy and every sell, win or lose.</td></tr>
+        <tr><th scope="row">Market maker</th><td>Can go either way. Pigeon is the counterparty to every trade, so when users back an outcome that loses, Pigeon keeps that money. When they back the eventual winner, Pigeon pays out.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Using the ₦100,000 buyer from the table above, if that were the only trade:</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th scope="col">If…</th><th scope="col" class="num">Pigeon collects</th><th scope="col" class="num">Pigeon pays out</th><th scope="col" class="num">Pigeon's result</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>B loses</td><td class="num">₦102,000</td><td class="num">₦0</td><td class="num good">+₦102,000</td></tr>
+        <tr><td>B wins</td><td class="num">₦102,000</td><td class="num">₦185,021.98</td><td class="num bad">−₦83,021.98</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Even in the bad case the loss stays below the ₦100,000 seed, as the maths guarantees. In a busy market with people backing every candidate, the losers' stakes largely fund the winners' payouts, and fees become the main source of income.</p>
+  <div class="analogy">
+    <span class="tag">Think of it like</span>
+    <p>The seed is a capped marketing budget for each market. Pigeon spends at most that much to make sure there is always a price to trade at, and gets fees back on all the trading it attracts. A well-traded market usually pays back its seed; a quiet, one-sided market can use it up.</p>
+  </div>
+  <p>Because Pigeon is on the other side of every trade, regulators are likely to treat the platform like a bookmaker. That is worth raising in licensing conversations.</p>
+</section>
+
+<section>
+  <h2><span class="step">09</span> The decisions this leaves to you</h2>
+  <div class="levers">
+    <div class="lever">
+      <h3>Seed per market</h3>
+      <p>Bigger seeds feel more professional (prices don't lurch) but put more money at risk. Big, popular markets deserve big seeds; niche ones can start small.</p>
+    </div>
+    <div class="lever">
+      <h3>Fee rate</h3>
+      <p>Currently 2% on buys and sells. It can be changed platform-wide, or set per market, without an app update.</p>
+    </div>
+    <div class="lever">
+      <h3>Which markets to open</h3>
+      <p>Markets where opinion is genuinely split attract trading on several sides, which is where fees outweigh the seed risk.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="step">10</span> Safety built in</h2>
+  <ul>
+    <li><strong>No overspending.</strong> A trade only goes through if the user's wallet covers the amount plus the fee.</li>
+    <li><strong>No nasty surprises.</strong> If other trades move the market enough that the user would get more than 2% less than the review screen showed, the trade is refused and re-quoted.</li>
+    <li><strong>No double-counting.</strong> Trades on the same market are processed strictly one at a time, and every naira in or out of a wallet is written to a permanent ledger that cannot be edited.</li>
+    <li><strong>Rounding can't create money.</strong> Amounts are rounded to the kobo, always in the direction that keeps Pigeon's books whole, so any rounding difference is a fraction of a kobo in Pigeon's favour.</li>
+    <li><strong>18+ only.</strong> Nobody can trade without a date of birth showing they are an adult.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="step">11</span> For the curious: the actual maths</h2>
+  <p>The formal name for this market maker is the <strong>Logarithmic Market Scoring Rule</strong> (LMSR), designed by the economist Robin Hanson and used by many prediction markets. You don't need this section to run the business; it's here so an engineer, investor or regulator can check the claims above.</p>
+  <p>Let <em>qᵢ</em> be the number of shares sold so far of outcome <em>i</em>, and <em>b</em> the liquidity set by the seed.</p>
+  <div class="formula">Price of outcome i     pᵢ = e^(qᵢ/b) ÷ Σⱼ e^(qⱼ/b)
+Total cost function    C(q) = b · ln( Σⱼ e^(qⱼ/b) )
+Cost of any trade      C(after) − C(before)
+Liquidity from seed    b = seed ÷ (₦100 × ln n)       n = number of outcomes
+Worst-case loss        ₦100 × b × ln n  =  seed</div>
+  <p>For the four-candidate market with a ₦100,000 seed, <em>b</em> = 100,000 ÷ (100 × ln 4) ≈ 721.35 shares. The prices always sum to exactly 1, which is why the chances always add up to 100%.</p>
+</section>
+
+<section>
+  <h2><span class="step">12</span> Glossary</h2>
+  <dl>
+    <div><dt>Share</dt><dd>A claim that pays ₦100 if its outcome happens and ₦0 otherwise.</dd></div>
+    <div><dt>Price or chance</dt><dd>What a share costs right now, in naira out of ₦100, which doubles as the market's estimated probability.</dd></div>
+    <div><dt>Market maker</dt><dd>Pigeon's automatic dealer: always quotes a price, takes the other side of every trade, and moves prices as people trade.</dd></div>
+    <div><dt>Market seed</dt><dd>The amount set when a market is created. It controls how steady prices are and is the maximum Pigeon can lose on that market.</dd></div>
+    <div><dt>Slippage</dt><dd>The gap between the price you see and the average price you pay on a larger trade, because your own buying pushes the price up.</dd></div>
+    <div><dt>Settlement</dt><dd>Paying ₦100 per winning share, 10 minutes after the result is entered.</dd></div>
+    <div><dt>Void</dt><dd>Cancelling a market and refunding what people paid for their shares.</dd></div>
+  </dl>
+</section>
+
+<footer>
+  All figures were produced by the market maker running in Pigeon's backend, for a four-outcome market with a ₦100,000 seed and a 2% fee. The fee and the seed are settings and may change.
+</footer>
+
+</main>
+</body>
+</html>
